@@ -46,7 +46,7 @@ class LLM:
         if self.is_output_structured:
             return json.loads(res)["response"]
         else:
-            res
+            return res
     
 
 class ModelEval:

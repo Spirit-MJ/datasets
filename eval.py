@@ -7,7 +7,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 print("load config from ./config.json")
-with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/config.json', 'r', encoding='utf-8') as file:
+with open('./config.json', 'r', encoding='utf-8') as file:
     config = json.load(file)
 
 
@@ -56,7 +56,7 @@ class ModelEval:
     
     def load_dataset(self):
         input_llm_data, ans = [], []
-        with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/AIME_2024.jsonl', 'r', encoding='utf-8') as file:
+        with open('./AIME_2024.jsonl', 'r', encoding='utf-8') as file:
              for line in file:
                 json_objects = json.loads(line)
                 input_llm_data.append(json_objects["Problem"])
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    log_path = f"/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/log.log"
+    log_path = f"./log.log"
 
     logger = logging.getLogger('AIME_2024')
     logger.setLevel(logging.INFO) 

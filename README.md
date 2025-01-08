@@ -21,7 +21,10 @@
 }
 ```
 
-其中，question字段包含一个问题，primary_category字段表示问题所属的一级主题、secondary_category字段表示问题所属的二级主题，answer字段表示针对该问题的参考答案。
+- ID字段表示题的唯一标识
+- Problem字段包含一个问题
+- Solution字段表示问题参考解题过程
+- answer字段表示针对该问题的参考答案。
 
 # 3.文件说明
 - [eval.py](eval.py)：评估脚本

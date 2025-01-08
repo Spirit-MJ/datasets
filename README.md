@@ -2,7 +2,7 @@
 
 - AIME 2024 是2024年美国数学邀请赛，是面向美国高中生的顶级数学竞赛
 
-- 数据集原始地址如下：`https://huggingface.co/datasets/Maxwell-Jia/AIME_2024?row=24`
+- 数据集原始地址如下：[huggingface](https://huggingface.co/datasets/Maxwell-Jia/AIME_2024?row=24)
 
 - 总共30道题数学题
 

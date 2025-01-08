@@ -30,7 +30,7 @@ class LLM:
         response = self.client.chat.completions.create(
         model=config["LLM_MODEL"],
         max_tokens=self.max_tokens,
-        messages=[{"role": "system", "content": config["system_prompt"]},
+        messages=[{"role": "system", "content": sys_pmt},
                   {"role": "user", "content": usr_prompt}],
         temperature=self.temperature,
         timeout=self.time_out,

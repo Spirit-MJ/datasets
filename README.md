@@ -1,6 +1,7 @@
 # 1.数据集概述
 
 - MBPP旨在评估和提升编程模型在基础Python编程任务上的表现。该数据集包含***\*974\****个编程任务，这些任务由入门级程序员设计，旨在通过自然语言描述来合成简短的Python程序。每个任务都包括一个具体问题的描述、一个解决该问题的Python函数，以及三个用于验证函数正确性的测试用例。这些测试用例以断言（assert）语句的形式编写，确保代码在执行时的正确性。
+- MBPP数据集有两个版本：完整版、编辑版，后者通过手动检查和编辑，确保了问题的清晰度和测试用例的准确性。
 - 数据集原始地址如下：[https://huggingface.co/datasets/google-research-datasets/mbpp](https://huggingface.co/datasets/google-research-datasets/mbpp)
 
 # 2.数据集划分

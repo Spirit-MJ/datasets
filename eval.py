@@ -16,11 +16,10 @@ class ResponseType(BaseModel):
 
 
 class LLM:
-    def __init__(self, json_schema, temperature, max_tokens, time_out, is_output_structured):
+    def __init__(self, json_schema, temperature, max_tokens, time_out):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.time_out = time_out
-        self.is_output_structured = is_output_structured
         self.json_schema = json_schema
         self.client = OpenAI(
                 base_url = config["LLM_API"],
@@ -31,22 +30,19 @@ class LLM:
         response = self.client.chat.completions.create(
         model=config["LLM_MODEL"],
         max_tokens=self.max_tokens,
-        messages=[{"role": "system", "content": sys_pmt},
+        messages=[{"role": "system", "content": config["system_prompt"]},
                   {"role": "user", "content": usr_prompt}],
         temperature=self.temperature,
         timeout=self.time_out,
         response_format={
                 "type": "json_schema",
                 "json_schema": {"name": "foo", "schema": self.json_schema},
-            } if self.is_output_structured else None
+            } 
             )
         res = response.choices[0].message.content
         logger.info(f"system prompt:\n{sys_pmt}\n\nuser prompt:\n{usr_prompt}\n\nresponse:\n{str(res)}")
         logger.info(f"-"*100)
-        if self.is_output_structured:
-            return json.loads(res)["response"]
-        else:
-            return res
+        return json.loads(res)["response"]
     
 
 class ModelEval:
@@ -86,11 +82,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='AIME 2024')
 
-    parser.add_argument('--system_prompt', type=str, default='you are a helpful assistant', help='system_prompt of LLM')
     parser.add_argument('--temperature', type=float, default=0.5, help='temperature of LLM')
     parser.add_argument('--max_tokens', type=int, default=20, help='max_tokens of LLM')
     parser.add_argument('--time_out', type=float, default=10, help='max response time of LLM')
-    parser.add_argument('--is_output_structured', type=bool, default=True, help='LLM structured output')
     parser.add_argument('--num_workers', type=int, default=20, help='number of workers')
 
     args = parser.parse_args()
@@ -111,7 +105,7 @@ if __name__ == "__main__":
     logger.addHandler(fh)
 
     json_schema = ResponseType.model_json_schema()
-    llm = LLM(json_schema, args.temperature, args.max_tokens, args.time_out, args.is_output_structured)
+    llm = LLM(json_schema, args.temperature, args.max_tokens, args.time_out)
     llm_eval = ModelEval(llm)
-    acc = llm_eval.model_eval(system_prompt=args.system_prompt, max_workers=args.num_workers)
+    acc = llm_eval.model_eval(system_prompt=config["system_prompt"], max_workers=args.num_workers)
     print("The acc of "+ config["LLM_MODEL"]+ f" in AIME_2024 dataset is {acc*100:.2f}%")

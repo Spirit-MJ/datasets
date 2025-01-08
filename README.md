@@ -39,9 +39,9 @@
 
 ```shell
 bash run.sh 0.1 \ # temperature
-			20 \  # max_tokens
-			10 \  # time_out
-			50 \  # num-workers
+	20 \  # max_tokens
+	10 \  # time_out
+	50 \  # num-workers
 ```
 
 # 5.使用[eval.py](eval.py)脚本进行评估，示例:

@@ -8,15 +8,14 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 print("load config from ./config.json")
-with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/config.json', 'r', encoding='utf-8') as file:
+with open('./config.json', 'r', encoding='utf-8') as file:
     config = json.load(file)
 
 
 class LLM:
-    def __init__(self, temperature, max_tokens, time_out):
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.time_out = time_out
+    def __init__(self, config, n):
+        self.config = config
+        self.n = n
         self.client = OpenAI(
                 base_url = config["LLM_API"],
                 api_key=config["LLM_KEY"]
@@ -24,21 +23,21 @@ class LLM:
         
     def get_response(self, usr_prompt, sys_pmt):
         result = []
-        for prompt in usr_prompt:
-            response = self.client.chat.completions.create(
-            model=config["LLM_MODEL"],
-            max_tokens=self.max_tokens,
-            messages=[{"role": "system", "content": sys_pmt},
-                    {"role": "user", "content": prompt}],
-            temperature=self.temperature,
-            timeout=self.time_out
-                )
-            res = response.choices[0].message.content
+        response = self.client.chat.completions.create(
+        model=self.config["LLM_MODEL"],
+        messages=[{"role": "system", "content": sys_pmt},
+                {"role": "user", "content": usr_prompt}],
+        n = self.n,
+        **self.config["other parameters of llm"]
+            )
+        
+        for i in range(self.n):
+            res = response.choices[i].message.content
             try:
                 temp_res = res.split('```python\n')[1].split('```')[0].split('# Test')[0]
             except:
                 temp_res = res
-            logger.info(f"system prompt:\n{sys_pmt}\n\nuser prompt:\n{prompt}\n\nresponse:\n{temp_res}")
+            logger.info(f"system prompt:\n{sys_pmt}\n\nuser prompt:\n{usr_prompt}\n\nresponse:\n{temp_res}")
             logger.info(f"-"*100)
             result.append(temp_res)
         return result
@@ -55,34 +54,32 @@ class ModelEval:
     def load_dataset(self):
         user_prompt_ls, test_list, few_shot = [], [], []
         if self.data_set_name == "full":
-            with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/MBPP/full/test.jsonl', 'r', encoding='utf-8') as file:
+            with open('./MBPP/full/test.jsonl', 'r', encoding='utf-8') as file:
                 for line in file:
                     json_objects = json.loads(line)
                     user_prompt_ls.append(json_objects["text"]+"Your code should pass these tests:\n\n"+str(json_objects["test_list"]))
                     test_list.append(json_objects["test_list"])
             if isinstance(self.few_shot_id, list):
-                with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/MBPP/full/prompt.jsonl', 'r', encoding='utf-8') as file:
+                with open('./MBPP/full/prompt.jsonl', 'r', encoding='utf-8') as file:
                     for idx, line in enumerate(file):
                         if (idx+1) in self.few_shot_id:
                             json_objects = json.loads(line)
                             few_shot.append((json_objects["text"], json_objects["code"], json_objects["test_list"]))
         elif self.data_set_name == "sanitized":
-            with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/MBPP/sanitized/test.jsonl', 'r', encoding='utf-8') as file:
+            with open('./MBPP/sanitized/test.jsonl', 'r', encoding='utf-8') as file:
                 for line in file:
                     json_objects = json.loads(line)
                     user_prompt_ls.append(json_objects["prompt"]+"Your code should pass these tests:\n\n"+str(json_objects["test_list"]))
                     test_list.append(json_objects["test_list"])
             if isinstance(self.few_shot_id, list):
-                with open('/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/MBPP/sanitized/prompt.jsonl', 'r', encoding='utf-8') as file:
+                with open('./MBPP/sanitized/prompt.jsonl', 'r', encoding='utf-8') as file:
                     for idx, line in enumerate(file):
                         if (idx+1) in self.few_shot_id:
                             json_objects = json.loads(line)
                             few_shot.append((json_objects["prompt"], json_objects["code"], json_objects["test_list"]))
         else:
             raise ValueError("data_set must be 'full' or 'sanitized'") 
-        user_ls_prompt = [[item for _ in range(self.n)] for item in user_prompt_ls]
-        list_test = [[item for _ in range(self.n)] for item in test_list]
-        return user_ls_prompt, list_test, few_shot
+        return user_prompt_ls[:2], test_list[:2], few_shot
     
     def get_system_prompt(self, few_shot_template:list):
         if few_shot_template:
@@ -105,7 +102,7 @@ class ModelEval:
             try:
                 exec(response[idx])
                 tag = True
-                for case in test_case[idx]:
+                for case in test_case:
                     try:
                         exec(case)
                     except:
@@ -141,18 +138,15 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='MBPP')
 
-    parser.add_argument('--temperature', type=float, default=0.8, help='temperature of LLM')
-    parser.add_argument('--max_tokens', type=int, default=4096, help='max_tokens of LLM')
-    parser.add_argument('--time_out', type=float, default=30, help='max response time of LLM')
-    parser.add_argument('--num_workers', type=int, default=20, help='number of workers')
+    parser.add_argument('--num_workers', type=int, default=2, help='number of workers')
     parser.add_argument('--data_set', type=str, default='full', help='full or sanitized')
-    parser.add_argument('--few_shot_id', type=list[int], default=[2,3,4], help='full or sanitized')
-    parser.add_argument('--n', type=int, default=10, help='total number of samples in pass@k')
-    parser.add_argument('--k', type=int, default=3, help='k in pass@k')
+    parser.add_argument('--n', type=int, default=5, help='total number of samples in pass@k')
+    parser.add_argument('--k', type=int, default=2, help='k in pass@k')
+    parser.add_argument('--few_shot_id', nargs='+', type=int, default=None, help='A list of integer IDs for few-shot learning.')
 
     args = parser.parse_args()
 
-    log_path = f"/Users/xiemingjiang/Pycharm程序/GitLab/dataset/llm-evaluation-datasets/log.log"
+    log_path = f"./log.log"
 
     logger = logging.getLogger('MBPP')
     logger.setLevel(logging.INFO) 
@@ -166,7 +160,7 @@ if __name__ == "__main__":
 
     logger.addHandler(fh)
 
-    llm = LLM(args.temperature, args.max_tokens, args.time_out)
+    llm = LLM(config, args.n)
     llm_eval = ModelEval(llm, args.data_set, args.few_shot_id, args.n, args.k)
     acc = llm_eval.model_eval(max_workers=args.num_workers)
     print("The acc of "+ config["LLM_MODEL"]+ f" in MBPP dataset is {acc*100:.2f}%")

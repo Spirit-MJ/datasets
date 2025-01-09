@@ -2,5 +2,12 @@
 "LLM_API": "http://172.16.0.96:8000/v1",
 "LLM_MODEL": "qwen2.5-7b",
 "LLM_KEY": "sk-abc123def0987111",
-"system_prompt": "you are a helpful assistant"
+"system_prompt": "you are a helpful assistant",
+"other parameters of llm": 
+        {
+        "max_tokens": 4096,
+        "temperature": 0.8,
+        "timeout": 30
+        }
+
 }

@@ -6,20 +6,14 @@ from pydantic import BaseModel
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-print("load config from ./config.json")
-with open('./config.json', 'r', encoding='utf-8') as file:
-    config = json.load(file)
-
 
 class ResponseType(BaseModel):
     response: int
 
 
 class LLM:
-    def __init__(self, json_schema, temperature, max_tokens, time_out):
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.time_out = time_out
+    def __init__(self, json_schema, config):
+        self.config = config
         self.json_schema = json_schema
         self.client = OpenAI(
                 base_url = config["LLM_API"],
@@ -29,15 +23,13 @@ class LLM:
     def get_response(self, usr_prompt, sys_pmt):
         response = self.client.chat.completions.create(
         model=config["LLM_MODEL"],
-        max_tokens=self.max_tokens,
         messages=[{"role": "system", "content": sys_pmt},
                   {"role": "user", "content": usr_prompt}],
-        temperature=self.temperature,
-        timeout=self.time_out,
         response_format={
                 "type": "json_schema",
                 "json_schema": {"name": "foo", "schema": self.json_schema},
-            } 
+            },
+            **self.config["other parameters of llm"] 
             )
         res = response.choices[0].message.content
         logger.info(f"system prompt:\n{sys_pmt}\n\nuser prompt:\n{usr_prompt}\n\nresponse:\n{str(res)}")
@@ -82,9 +74,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='AIME 2024')
 
-    parser.add_argument('--temperature', type=float, default=0.5, help='temperature of LLM')
-    parser.add_argument('--max_tokens', type=int, default=20, help='max_tokens of LLM')
-    parser.add_argument('--time_out', type=float, default=10, help='max response time of LLM')
     parser.add_argument('--num_workers', type=int, default=20, help='number of workers')
 
     args = parser.parse_args()
@@ -104,8 +93,11 @@ if __name__ == "__main__":
 
     logger.addHandler(fh)
 
+    print("load config from ./config.json")
+    with open('./config.json', 'r', encoding='utf-8') as file:
+        config = json.load(file)
     json_schema = ResponseType.model_json_schema()
-    llm = LLM(json_schema, args.temperature, args.max_tokens, args.time_out)
+    llm = LLM(json_schema, config)
     llm_eval = ModelEval(llm)
     acc = llm_eval.model_eval(system_prompt=config["system_prompt"], max_workers=args.num_workers)
     print("The acc of "+ config["LLM_MODEL"]+ f" in AIME_2024 dataset is {acc*100:.2f}%")

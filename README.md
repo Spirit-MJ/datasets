@@ -38,10 +38,7 @@
 **注意要有相应的python环境！**
 
 ```shell
-bash run.sh 0.1 \ # temperature
-	    20 \  # max_tokens
-	    10 \  # time_out
-	    50 \  # num_workers
+bash run.sh 50  # num_workers
 ```
 
 # 5.使用[eval.py](eval.py)脚本进行评估，示例:
@@ -49,15 +46,12 @@ bash run.sh 0.1 \ # temperature
 **注意要有相应的python环境！**
 
 ```shell
-python eval.py --temperature 0.1 --max_tokens 20 --time_out 10 --num_workers 50
+python eval.py --num_workers 50
 ```
 
 - 参数说明
 
 ```shell
---temperature temperature of LLM
---max_tokens  max_tokens of LLM
---time_out max response time of LLM
 --num_workers number of workers
 ```
 

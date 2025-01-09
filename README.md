@@ -62,33 +62,35 @@
 - [eval.py](eval.py)：评估脚本
 - [run.sh](run.sh)：运行shell脚本
 - [MPBB](MPBB)：数据集分为[完整版](full)以及[编辑版](sanitized)，每个数据集又分为[训练集](train.jsonl)、[验证集](validation.jsonl)、[测试集](test.jsonl)以及[few shot](prompt.jsonl)。
-- [config.json](config.json)：大模型相关配置
+- [config.json](config.json)：大模型相关参数配置
 - [log.log](log.log)：运行后产生的日志
 
-# 4.使用[run.sh](run.sh)脚本进行评估，示例：
+# 5.使用[run.sh](run.sh)脚本进行评估，示例：
 
 **注意要有相应的python环境！**
 
 ```shell
-bash run.sh 0.1 \ # temperature
-        20 \  # max_tokens
-        10 \  # time_out
-        50 \  # num-workers
+bash run.sh full \ # full数据集or sanitized数据集， 默认为 'full'
+        5 \  # total number of samples in pass@k， 默认为 5
+        1 \  # k in pass@k， 默认为 1
+        2 \  # 并发数，默认为 1
+        2,3,4  # 选取id为哪些的数据作为few shot，例如 2,3,4， 可选参数 
 ```
 
-# 5.使用[eval.py](eval.py)脚本进行评估，示例:
+# 6.使用[eval.py](eval.py)脚本进行评估，示例:
 
 **注意要有相应的python环境！**
 
 ```shell
-python eval.py --temperature 0.1 --max_tokens 20 --time_out 10 --num_workers 50
+python eval.py --num_workers 2 --data_set full --n 5 --k 2 --few_shot_id 1 2 3
 ```
 
 - 参数说明
 
 ```shell
---temperature temperature of LLM
---max_tokens  max_tokens of LLM
---time_out max response time of LLM
---num_workers number of workers
+--num_workers  # number of workers
+--data_set  # full or sanitized
+--n  # total number of samples in pass@k
+--k  # k in pass@k
+--few_shot_id  # A list of integer IDs for few-shot learning
 ```

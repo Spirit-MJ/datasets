@@ -7,12 +7,12 @@
 
 # 2.数据集划分
 
-- 数据集数量：full:**974**   sanitized:**427**（full为所有的数据集， santized为精选数据集）
+- 数据集数量：full:**974**   sanitized:**427**（full为完整版，santized为编辑版本，）
 
-|           | **train** | **validation** | **test** | **prompt(few shot)** |
-| :-------: | :-------: | :------------: | :------: | :------------------: |
-|   full    |    374    |       90       |   500    |          10          |
-| sanitized |    120    |       43       |   257    |          7           |
+|           | **train**(训练) | **validation(微调时验证)** | **test(测试)** | **prompt(few shot)** |
+| :-------: | :-------------: | :------------------------: | :------------: | :------------------: |
+|   full    |       374       |             90             |      500       |          10          |
+| sanitized |       120       |             43             |      257       |          7           |
 
 # 3.数据示例
 
@@ -59,12 +59,11 @@
 ```
 
 # 4.文件说明
-
 - [eval.py](eval.py)：评估脚本
 - [run.sh](run.sh)：运行shell脚本
-- [AIME_2024.jsonl](AIME_2024.jsonl)：原始数据
-- [config.json](config.json)：大模型相关配置以及system prompt
-- [log.log](log.log)：运行后的日志
+- [MPBB](MPBB)：数据集分为[完整版](full)以及[编辑版](sanitized)，每个数据集又分为[训练集](train.jsonl)、[验证集](validation.jsonl)、[测试集](test.jsonl)以及[few shot](prompt.jsonl)。
+- [config.json](config.json)：大模型相关配置
+- [log.log](log.log)：运行后产生的日志
 
 # 4.使用[run.sh](run.sh)脚本进行评估，示例：
 
@@ -93,4 +92,3 @@ python eval.py --temperature 0.1 --max_tokens 20 --time_out 10 --num_workers 50
 --time_out max response time of LLM
 --num_workers number of workers
 ```
-

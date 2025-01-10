@@ -5,8 +5,8 @@
 "system_prompt": "you are a helpful assistant",
 "other parameters of llm": 
         {
-        "max_tokens": 4096,
-        "temperature": 0.8,
+        "max_tokens": 20,
+        "temperature": 0.01,
         "timeout": 30
         }
 

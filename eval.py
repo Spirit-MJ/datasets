@@ -7,10 +7,6 @@ from functools import partial
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-print("load config from ./config.json")
-with open('./config.json', 'r', encoding='utf-8') as file:
-    config = json.load(file)
-
 
 class LLM:
     def __init__(self, config, n):
@@ -79,7 +75,7 @@ class ModelEval:
                             few_shot.append((json_objects["prompt"], json_objects["code"], json_objects["test_list"]))
         else:
             raise ValueError("data_set must be 'full' or 'sanitized'") 
-        return user_prompt_ls[:2], test_list[:2], few_shot
+        return user_prompt_ls, test_list, few_shot
     
     def get_system_prompt(self, few_shot_template:list):
         if few_shot_template:
@@ -160,6 +156,9 @@ if __name__ == "__main__":
 
     logger.addHandler(fh)
 
+    print("load config from ./config.json")
+    with open('./config.json', 'r', encoding='utf-8') as file:
+        config = json.load(file)
     llm = LLM(config, args.n)
     llm_eval = ModelEval(llm, args.data_set, args.few_shot_id, args.n, args.k)
     acc = llm_eval.model_eval(max_workers=args.num_workers)

@@ -61,8 +61,9 @@
 # 4.文件说明
 - [eval.py](eval.py)：评估脚本
 - [run.sh](run.sh)：运行shell脚本
-- [MPBB](MPBB)：数据集分为[完整版](mbpp/full)以及[编辑版](mbpp/sanitized)，每个数据集又分为[训练集](mbpp/full/train.jsonl)、[验证集](mbpp/full/validation.jsonl)、[测试集](mbpp/full/test.jsonl)以及[few shot](mbpp/full/prompt.jsonl)。
+- [MPBB](MPBB)：数据集分为[完整版](full)以及[编辑版](sanitized)，每个数据集又分为[训练集](train.jsonl)、[验证集](validation.jsonl)、[测试集](test.jsonl)以及[few shot](prompt.jsonl)
 - [config.json](config.json)：大模型相关参数配置
+- [requirements.txt](requirements.txt)：需要的python环境
 - [log.log](log.log)：运行后产生的日志
 
 # 5.使用[run.sh](run.sh)脚本进行评估，示例：

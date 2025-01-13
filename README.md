@@ -31,6 +31,7 @@
 - [run.sh](run.sh)：运行shell脚本
 - [AIME_2024.jsonl](AIME_2024.jsonl)：原始数据
 - [config.json](config.json)：大模型相关配置以及system prompt
+- [requirements.txt](requirements.txt)：相应的python包要求
 - [log.log](log.log)：运行后的日志
 
 # 4.使用[run.sh](run.sh)脚本进行评估，示例：

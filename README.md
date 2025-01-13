@@ -31,6 +31,7 @@
 - [run.sh](run.sh)：运行shell脚本
 - [IFeval](IFeval)：原始数据集
 - [config.json](config.json)：大模型相关参数配置
+- [requirements.txt](requirements.txt)：相应的python环境
 - [log.log](log.log)：运行后产生的日志
 
 # 4.使用[run.sh](run.sh)脚本进行评估，示例：

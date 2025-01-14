@@ -59,7 +59,7 @@ class ModelEval:
              for line in file:
                 json_objects = json.loads(line)
                 or_data.append(json_objects["turns"][0]["content"])
-        return or_data[:100]
+        return or_data[:2]
     
     def model_eval(self, system_prompt:str, max_workers=5):
         result = {}
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Arena')
 
-    parser.add_argument('--num_workers', type=int, default=2, help='number of workers')
+    parser.add_argument('--num_workers', type=int, default=32, help='number of workers')
 
     args = parser.parse_args()
 
@@ -150,4 +150,3 @@ if __name__ == "__main__":
         judge_result.append(v)
     results_dict = get_score(judge_result)
     print(results_dict)
-    # print("The acc of "+ config["LLM_MODEL"]+ f" in AIME_2024 dataset is {acc*100:.2f}%")

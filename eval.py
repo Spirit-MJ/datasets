@@ -1,185 +1,153 @@
-import argparse
+from openai import OpenAI
+from tqdm import tqdm
 import json
-import os
-import re
-import time
-import concurrent.futures
-
-import tiktoken
-import shortuuid
-import tqdm
-
-from add_markdown_info import count_markdown_elements, remove_pattern
-from utils import (
-    load_questions,
-    load_model_answers,
-    make_config,
-    get_endpoint,
-    chat_completion_openai,
-    chat_completion_anthropic,
-    chat_completion_openai_azure,
-    chat_completion_mistral,
-    http_completion_gemini,
-    chat_completion_cohere,
-    reorg_answer_file,
-    OPENAI_MODEL_LIST,
-    temperature_config,
-)
+from functools import partial
+from pydantic import BaseModel
+from enum import Enum
+import logging
+from concurrent.futures import ThreadPoolExecutor
 
 
-def get_answer(
-    question: dict, model: str, endpoint_info: dict, num_choices: int, max_tokens: int, temperature: float, answer_file: str, api_dict: dict
-):
-    if question["category"] in temperature_config:
-        temperature = temperature_config[question["category"]]
+class SelectStr(str, Enum):
+    a = "[[A>>B]]"
+    b = "[[A>B]]"
+    c = "[[A=B]]"
+    d = "[[B>A]]"
+    e = "[[B>>A]]"
 
-    api_type = endpoint_info["api_type"]
 
-    conv = []
+class ResponseType(BaseModel):
+    response: SelectStr
 
-    if "system_prompt" in endpoint_info.keys():
-        conv.append({"role": "system", "content": endpoint_info["system_prompt"]})
-    elif model in OPENAI_MODEL_LIST:
-        conv.append({"role": "system", "content": "You are a helpful assistant."})
 
-    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-    choices = []
-    for i in range(num_choices):
-        turns = []
-        for j in range(len(question["turns"])):
-            conv.append({"role": "user", "content": question["turns"][j]["content"]})
-            if api_type == "anthropic":
-                output = chat_completion_anthropic(model=endpoint_info["model_name"],
-                                                   messages=conv,
-                                                   temperature=temperature,
-                                                   max_tokens=max_tokens)
-            elif api_type == "mistral":
-                output = chat_completion_mistral(model=endpoint_info["model_name"],
-                                                 messages=conv,
-                                                 temperature=temperature,
-                                                 max_tokens=max_tokens)
-            elif api_type == "gemini":
-                output = http_completion_gemini(model=endpoint_info["model_name"],
-                                                message=question["turns"][j]["content"],
-                                                temperature=temperature,
-                                                max_tokens=max_tokens)
-            elif api_type == "azure":
-                output = chat_completion_openai_azure(model=endpoint_info["model_name"],
-                                                      messages=conv,
-                                                      temperature=temperature,
-                                                      max_tokens=max_tokens,
-                                                      api_dict=api_dict)
-            elif api_type == "cohere":
-                output = chat_completion_cohere(model=endpoint_info["model_name"],
-                                                messages=conv,
-                                                temperature=temperature,
-                                                max_tokens=max_tokens)
-            else:
-                output = chat_completion_openai(model=endpoint_info["model_name"], 
-                                                messages=conv, 
-                                                temperature=temperature, 
-                                                max_tokens=max_tokens, 
-                                                api_dict=api_dict)
-            conv.append({"role": "assistant", "content": output})
-
-            turns.append({"content": output})
-        choices.append({"index": i, "turns": turns})
+class LLM:
+    def __init__(self, config, json_schema=False):
+        self.config = config
+        self.json_schema = json_schema
+        self.client = OpenAI(
+                base_url = config["LLM_API"],
+                api_key=config["LLM_KEY"]
+            ) 
+        
+    def get_response(self, usr_prompt, sys_pmt):
+        response = self.client.chat.completions.create(
+                model=self.config["LLM_MODEL"],
+                messages=[{"role": "system", "content": sys_pmt},
+                        {"role": "user", "content": usr_prompt}],
+                response_format={
+                        "type": "json_schema",
+                        "json_schema": {"name": "foo", "schema": self.json_schema},
+                                } if self.json_schema else None ,
+                **self.config["other parameters of llm"] 
+            )
+        res = response.choices[0].message.content
+        logger.info(f"system prompt:\n{sys_pmt}\n\nuser prompt:\n{usr_prompt}\n\nresponse:\n{str(res)}")
+        logger.info(f"-"*150)
+        if self.json_schema:
+            res = json.loads(res)["response"]
+        return res
     
-    # Dump answers
-    ans = {
-        "question_id": question["question_id"],
-        "answer_id": shortuuid.uuid(),
-        "model_id": model,
-        "choices": choices,
-        "tstamp": time.time(),
-    }
-    
-    if len(choices) == len(turns) == 1:
-        metadata = {"token_len": len(encoding.encode(output, 
-                                                     disallowed_special=()))}
-        ans["conv_metadata"] = metadata | count_markdown_elements(remove_pattern(output, 
-                                                                     re.compile("```([^`]*)```")),
-                                                                 suffix="")
 
-    os.makedirs(os.path.dirname(answer_file), exist_ok=True)
-    with open(answer_file, "a") as fout:
-        fout.write(json.dumps(ans) + "\n")
+class ModelEval:
+    def __init__(self, llm:LLM, judge=False):
+        self.model = llm
+        self.judge = judge
+    
+    def load_dataset(self):
+        or_data = []
+        with open('./Arena-Hard.jsonl', 'r', encoding='utf-8') as file:
+             for line in file:
+                json_objects = json.loads(line)
+                or_data.append(json_objects["turns"][0]["content"])
+        return or_data[:100]
+    
+    def model_eval(self, system_prompt:str, max_workers=5):
+        result = {}
+        partial_question_answer = partial(self.model.get_response, sys_pmt=system_prompt)
+        if self.judge:
+            inputs = self.judge
+        else:
+            inputs = self.load_dataset()
+        len_data_set = len(inputs)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for idx, res in enumerate(tqdm(executor.map(partial_question_answer, inputs), 
+                                           total=len_data_set, 
+                                           ncols=100,
+                                           desc="Processing",
+                                           unit='items',
+                                           leave=True)):
+                result[inputs[idx]] = res
+        return result
+
+
+def get_score(outputs):
+    a_far_exceeds_b, a_exceeds_b = 0, 0
+    a_equals_b = 0
+    b_exceeds_a, b_far_exceeds_a = 0, 0
+    for item in outputs:
+        if item == "[[A>>B]]":
+            a_far_exceeds_b += 1
+        elif item == "[[A>B]]":
+            a_exceeds_b += 1
+        elif item == "[[A=B]]":
+            a_equals_b += 1
+        elif item == "[[B>A]]":
+            b_exceeds_a += 1
+        else:
+            b_far_exceeds_a += 1
+    return {"[[A>>B]]": a_far_exceeds_b,
+            "[[A>B]]": a_exceeds_b, 
+            "[[A=B]]": a_equals_b,
+            "[[B>A]]": b_exceeds_a,
+            "[[B>>A]]": b_far_exceeds_a}
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--setting-file", type=str, default="config/gen_answer_config.yaml"
-    )
-    parser.add_argument(
-        "--endpoint-file", type=str, default="config/api_config.yaml"
-    )
+
+    import argparse
+    parser = argparse.ArgumentParser(description='Arena')
+
+    parser.add_argument('--num_workers', type=int, default=2, help='number of workers')
+
     args = parser.parse_args()
 
-    settings = make_config(args.setting_file)
-    endpoint_list = make_config(args.endpoint_file)
 
-    existing_answer = load_model_answers(os.path.join("data", settings["bench_name"], "model_answer"))
+    log_path = f"./log.log"
+
+    logger = logging.getLogger('Arena')
+    logger.setLevel(logging.INFO) 
+
+    fh = logging.FileHandler(log_path, encoding='utf-8') 
+    formatter = logging.Formatter('%(message)s')
+    fh.setFormatter(formatter)
+
+    httpx_logger = logging.getLogger('httpx')
+    httpx_logger.setLevel(logging.WARNING)  
+
+    logger.addHandler(fh)
+
+    print("load config from ./config.json")
+    with open('./config.json', 'r', encoding='utf-8') as file:
+        config = json.load(file)
+
+    get_ans_llm, baseline_llm = LLM(config["get_ans_model"]), LLM(config["baseline_model"])
+    get_ans_llm_eval = ModelEval(get_ans_llm)
+    baseline_llm_eval = ModelEval(baseline_llm)
+    get_ans_result = get_ans_llm_eval.model_eval(system_prompt=config["get_ans_model"]["system_prompt"], max_workers=args.num_workers)
+    baseline_result = baseline_llm_eval.model_eval(system_prompt=config["baseline_model"]["system_prompt"], max_workers=args.num_workers)
+    judge_input = []
+    for k, v in get_ans_result.items():
+        judge_input.append("<|Question|>\n" + k + "\n\n<|The Start of Assistant A's Answer|>\n" + v + \
+                           "\n<|The End of Assistant A's Answer|>\n\n<|The Start of Assistant B's Answer|>\n" + \
+                            baseline_result[k] + "<|The End of Assistant B's Answer|>") 
     
-    print(settings)
-
-    for model in settings["model_list"]:
-        assert model in endpoint_list
-        endpoint_info = endpoint_list[model]
-
-        question_file = os.path.join("data", settings["bench_name"], "question.jsonl")
-        questions = load_questions(question_file)
-
-        answer_file = os.path.join("data", settings["bench_name"], "model_answer", f"{model}.jsonl")
-        print(f"Output to {answer_file}")
-
-        if "parallel" in endpoint_info:
-            parallel = endpoint_info["parallel"]
-        else:
-            parallel = 1
-
-        # We want to maximizes the number of tokens generate per answer: max_tokens = specified token # - input tokens #
-        if "tokenizer" in endpoint_info:
-            question_list = [question["turns"][0]["content"] for question in questions]
-            if model in OPENAI_MODEL_LIST:
-                tokenizer = tiktoken.encoding_for_model(endpoint_info["model_name"])
-                tokens = [tokenizer.encode(prompt) for prompt in question_list]
-                max_tokens = [(settings["max_tokens"] - len(token) - 100) for token in tokens]
-            else:
-                from transformers import AutoTokenizer
-                
-                os.environ["TOKENIZERS_PARALLELISM"] = "false"
-                tokenizer = AutoTokenizer.from_pretrained(endpoint_info["tokenizer"])
-
-                tokens = tokenizer(question_list)
-                max_tokens = [(settings["max_tokens"] - len(prompt) - 300) for prompt in tokens["input_ids"]]
-        else:
-            max_tokens = [settings["max_tokens"]] * len(questions)
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=parallel) as executor:
-            futures = []
-            count = 0
-            for index, question in enumerate(questions):
-                if model in existing_answer and question["question_id"] in existing_answer[model]:
-                    count += 1
-                    continue
-                future = executor.submit(
-                    get_answer,
-                    question,
-                    model,
-                    endpoint_info,
-                    settings["num_choices"],
-                    max_tokens[index],
-                    settings["temperature"],
-                    answer_file,
-                    get_endpoint(endpoint_info["endpoints"]),
-                )
-                futures.append(future)
-            if count > 0:
-                print(f"{count} number of existing answers")
-            for future in tqdm.tqdm(
-                concurrent.futures.as_completed(futures), total=len(futures)
-            ):
-                future.result()
-
-        reorg_answer_file(answer_file)
+    json_schema = ResponseType.model_json_schema()
+    judge_llm = LLM(config["judge_model"], json_schema)
+    judge_model = ModelEval(judge_llm, judge_input)
+    judge_response = judge_model.model_eval(system_prompt=config["judge_model"]["system_prompt"], max_workers=args.num_workers)
+    judge_result = []
+    for v in judge_response.values():
+        judge_result.append(v)
+    results_dict = get_score(judge_result)
+    print(results_dict)
+    # print("The acc of "+ config["LLM_MODEL"]+ f" in AIME_2024 dataset is {acc*100:.2f}%")

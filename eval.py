@@ -59,7 +59,7 @@ class ModelEval:
              for line in file:
                 json_objects = json.loads(line)
                 or_data.append(json_objects["turns"][0]["content"])
-        return or_data[:2]
+        return or_data
     
     def model_eval(self, system_prompt:str, max_workers=5):
         result = {}
@@ -81,25 +81,26 @@ class ModelEval:
 
 
 def get_score(outputs):
-    a_far_exceeds_b, a_exceeds_b = 0, 0
-    a_equals_b = 0
-    b_exceeds_a, b_far_exceeds_a = 0, 0
+    result = {"A>B": 0, "A<B": 0}
+
+    def calculate_elo(ra, rb, sa, sb, k=2):
+        ea = 1 / (1 + 10 ** ((rb - ra) / 400))
+        eb = 1 / (1 + 10 ** ((ra - rb) / 400))
+        ra_new = ra + k * (sa - ea)
+        rb_new = rb + k * (sb - eb)
+        return ra_new, rb_new
+    
+    ra, rb = 0, 0
     for item in outputs:
-        if item == "[[A>>B]]":
-            a_far_exceeds_b += 1
-        elif item == "[[A>B]]":
-            a_exceeds_b += 1
+        if item == "[[A>>B]]" or item == "[[A>B]]":
+            result["A>B"] += 1 
         elif item == "[[A=B]]":
-            a_equals_b += 1
-        elif item == "[[B>A]]":
-            b_exceeds_a += 1
+            result["A>B"] += 0.5
+            result["A<B"] += 0.5
         else:
-            b_far_exceeds_a += 1
-    return {"[[A>>B]]": a_far_exceeds_b,
-            "[[A>B]]": a_exceeds_b, 
-            "[[A=B]]": a_equals_b,
-            "[[B>A]]": b_exceeds_a,
-            "[[B>>A]]": b_far_exceeds_a}
+            result["A<B"] += 1
+    ra, rb = calculate_elo(ra, rb, result["A>B"], result["A<B"], k=2)
+    return ra, result
 
 
 if __name__ == "__main__":
@@ -107,10 +108,9 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Arena')
 
-    parser.add_argument('--num_workers', type=int, default=32, help='number of workers')
+    parser.add_argument('--num_workers', type=int, default=64, help='number of workers')
 
     args = parser.parse_args()
-
 
     log_path = f"./log.log"
 
@@ -148,5 +148,6 @@ if __name__ == "__main__":
     judge_result = []
     for v in judge_response.values():
         judge_result.append(v)
-    results_dict = get_score(judge_result)
+    elo, results_dict = get_score(judge_result)
+    print(elo)
     print(results_dict)

@@ -1,7 +1,7 @@
 {
-"LLM_API": "http://172.16.0.96:8000/v1",
+"LLM_API": "http://localhost:8000/v1",
 "LLM_MODEL": "qwen2.5-7b",
-"LLM_KEY": "sk-abc123def0987111",
+"LLM_KEY": "*********",
 "system_prompt": "you are a helpful assistant",
 "other parameters of llm": 
         {

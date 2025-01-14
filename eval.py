@@ -22,7 +22,7 @@ class LLM:
         
     def get_response(self, usr_prompt, sys_pmt):
         response = self.client.chat.completions.create(
-        model=config["LLM_MODEL"],
+        model=self.config["LLM_MODEL"],
         messages=[{"role": "system", "content": sys_pmt},
                   {"role": "user", "content": usr_prompt}],
         response_format={
